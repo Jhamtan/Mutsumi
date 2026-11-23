@@ -48,9 +48,30 @@ const routes: RouteRecordRaw[] = [
         name: 'DiaryEdit',
         component: () => import('../views/diary/DiaryEditor.vue'),
         props: true
+      },
+      {
+        path: 'trips',
+        name: 'Trips',
+        component: () => import('../views/trip/TripList.vue')
+      },
+      {
+        path: 'trips/new',
+        name: 'TripNew',
+        component: () => import('../views/trip/TripEditor.vue')
+      },
+      {
+        path: 'trips/abandoned',
+        name: 'TripAbandoned',
+        component: () => import('../views/trip/TripAbandoned.vue')
+      },
+      {
+        path: 'trips/:itineraryId/edit',
+        name: 'TripEdit',
+        component: () => import('../views/trip/TripEditor.vue'),
+        props: true
       }
-      // trips, photo wall and settings children are registered as each feature
-      // is migrated.
+      // photo wall and settings children are registered as each feature is
+      // migrated.
     ]
   },
   {

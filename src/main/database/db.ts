@@ -10,6 +10,9 @@ import { User } from './models/user.model'
 import { Notebook } from './models/notebook.model'
 import { Diary } from './models/diary.model'
 import { DiaryImage } from './models/diary-image.model'
+import { Itinerary } from './models/itinerary.model'
+import { ItineraryPlace } from './models/itinerary-place.model'
+import { ItineraryLeg } from './models/itinerary-leg.model'
 import { databaseErrorDetails } from './errors'
 
 /** Shared SQLite Sequelize instance used by every repository. */
@@ -20,9 +23,8 @@ export const sequelize = new Sequelize({
     charset: 'utf8mb4',
     collate: 'utf8mb4_unicode_ci'
   },
-  // Register models. Only the model chain required by the migrated User entity
-  // is registered here; itinerary and photo-wall models are added as they land.
-  models: [User, Notebook, Diary, DiaryImage],
+  // Register models. Photo-wall models are added as they land.
+  models: [User, Notebook, Diary, DiaryImage, Itinerary, ItineraryPlace, ItineraryLeg],
   // SQL may contain sensitive data; diagnostics log only allowlisted error types and codes
   logging: false
 })
