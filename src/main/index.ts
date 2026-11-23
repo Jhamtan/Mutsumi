@@ -1,19 +1,72 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { mkdirSync } from 'node:fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { AppInitializer } from './init'
+import Store from 'electron-store'
+import { WindowState } from './types'
+
+/**
+ * Electron main-process entry point: acquires the single-instance lock, configures
+ * Chromium session storage, manages the main BrowserWindow lifecycle, and binds
+ * application initialization/cleanup to Electron lifecycle events.
+ */
+
+// Acquire the lock before Chromium initializes caches or the database. If a prior
+// development instance is still alive, the new process exits instead of becoming
+// another hidden instance that competes for the same files.
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (!hasSingleInstanceLock) app.quit()
+
+/**
+ * Keep Chromium caches in this app's own writable directory. Electron otherwise
+ * derives a shared "Electron" cache path in development, where stale processes
+ * can hold directory handles and produce Windows access-denied GPU cache errors.
+ * This must run before `app.whenReady()` because Chromium creates caches early.
+ */
+function configureSessionStorage(): void {
+  const sessionDataPath = join(app.getPath('userData'), 'Session Data')
+  const cachePath = join(sessionDataPath, 'Cache')
+  mkdirSync(cachePath, { recursive: true })
+  app.setPath('sessionData', sessionDataPath)
+  app.commandLine.appendSwitch('disk-cache-dir', cachePath)
+}
+
+if (hasSingleInstanceLock) configureSessionStorage()
+
+// electron-store 12+ is a pure ESM package; the default export is the constructor, so no need to reach for .default
+const store = hasSingleInstanceLock
+  ? new Store<WindowState>({
+      name: 'window-state', // file name: window-state.json
+      defaults: {
+        width: 900,
+        height: 670
+      }
+    })
+  : undefined
 
 function createWindow(): void {
+  if (!store) return
+
+  // Read the stored state
+  const { width, height, x, y } = store.store
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: width,
+    height: height,
+    x: x,
+    y: y,
     show: false,
+    backgroundColor: '#f5f9f8',
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon: icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true
     }
   })
 
@@ -21,8 +74,24 @@ function createWindow(): void {
     mainWindow.show()
   })
 
+  // Listen for window close to save state
+  mainWindow.on('close', () => {
+    // Window is not maximized
+    if (!mainWindow.isMaximized()) {
+      const bounds = mainWindow.getBounds()
+      store.set({
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y
+      })
+    }
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    void shell.openExternal(details.url).catch(() => {
+      console.warn('Unable to open external link')
+    })
     return { action: 'deny' }
   })
 
@@ -35,12 +104,27 @@ function createWindow(): void {
   }
 }
 
+// The main process always reuses one initializer to manage the runtime lifecycle.
+const initializer = AppInitializer.getInstance()
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (!hasSingleInstanceLock) return
+
+  app.on('second-instance', () => {
+    const mainWindow = BrowserWindow.getAllWindows()[0]
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  })
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
+
+  await initializer.initialize()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -49,9 +133,6 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
   createWindow()
 
   app.on('activate', function () {
@@ -59,6 +140,22 @@ app.whenReady().then(() => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+// Electron fires before-quit more than once when cleanup eventually calls app.exit().
+// Guard it so each quit runs cleanup exactly once and can then terminate.
+let isQuitting = false
+app.on('before-quit', async (event) => {
+  if (isQuitting) return
+
+  isQuitting = true
+  event.preventDefault()
+
+  try {
+    await initializer.cleanup()
+  } finally {
+    app.exit(0)
+  }
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
