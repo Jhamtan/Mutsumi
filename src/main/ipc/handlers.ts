@@ -5,6 +5,7 @@
  */
 import { registerAuthHandlers } from './handlers/auth-handlers'
 import { registerNotebookHandlers } from './handlers/notebook-handlers'
+import { registerDiaryHandlers } from './handlers/diary-handlers'
 
 /**
  * Registers every IPC handler on the Electron main process.
@@ -13,6 +14,7 @@ import { registerNotebookHandlers } from './handlers/notebook-handlers'
 export function registerIpcHandlers(): void {
   registerAuthHandlers()
   registerNotebookHandlers()
-  // Remaining domains (diary, backup, window, itinerary, photo wall) are
-  // registered as each feature is migrated.
+  registerDiaryHandlers()
+  // Remaining domains (backup, window, itinerary, photo wall) are registered
+  // as each feature is migrated.
 }

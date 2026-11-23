@@ -24,9 +24,33 @@ const routes: RouteRecordRaw[] = [
         path: 'notebooks',
         name: 'Notebooks',
         component: () => import('../views/notebook/NotebookList.vue')
+      },
+      {
+        path: 'notebooks/:notebookId/diaries',
+        name: 'Diaries',
+        component: () => import('../views/diary/DiaryList.vue'),
+        props: true
+      },
+      {
+        path: 'notebooks/:notebookId/diaries/new',
+        name: 'DiaryNew',
+        component: () => import('../views/diary/DiaryEditor.vue'),
+        props: true
+      },
+      {
+        path: 'notebooks/:notebookId/diaries/:diaryId',
+        name: 'DiaryDetail',
+        component: () => import('../views/diary/DiaryDetail.vue'),
+        props: true
+      },
+      {
+        path: 'notebooks/:notebookId/diaries/:diaryId/edit',
+        name: 'DiaryEdit',
+        component: () => import('../views/diary/DiaryEditor.vue'),
+        props: true
       }
-      // diaries, trips, photo wall and settings children are registered as
-      // each feature is migrated.
+      // trips, photo wall and settings children are registered as each feature
+      // is migrated.
     ]
   },
   {
