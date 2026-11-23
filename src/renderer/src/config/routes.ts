@@ -79,8 +79,12 @@ const routes: RouteRecordRaw[] = [
         path: 'photowall/view',
         name: 'PhotoWallView',
         component: () => import('../views/photowall/PhotoWallView.vue')
+      },
+      {
+        path: 'settings',
+        name: 'Settings',
+        component: () => import('../views/Settings.vue')
       }
-      // settings children are registered with the settings feature.
     ]
   },
   {
