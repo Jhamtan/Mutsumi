@@ -14,6 +14,9 @@ export default defineConfig({
   test: {
     clearMocks: true,
     restoreMocks: true,
+    // Security tests create scratch dirs under os.tmpdir() with shared prefixes;
+    // running test files sequentially keeps those assertions deterministic.
+    fileParallelism: false,
     projects: [
       {
         extends: true,

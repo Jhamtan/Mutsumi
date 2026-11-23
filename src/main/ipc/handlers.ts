@@ -6,6 +6,7 @@
 import { registerAuthHandlers } from './handlers/auth-handlers'
 import { registerNotebookHandlers } from './handlers/notebook-handlers'
 import { registerDiaryHandlers } from './handlers/diary-handlers'
+import { registerBackupHandlers } from './handlers/backup-handlers'
 import { registerItineraryHandlers } from './handlers/itinerary-handlers'
 import { registerPhotoWallHandlers } from './handlers/photowall-handlers'
 
@@ -17,7 +18,8 @@ export function registerIpcHandlers(): void {
   registerAuthHandlers()
   registerNotebookHandlers()
   registerDiaryHandlers()
+  registerBackupHandlers()
   registerItineraryHandlers()
   registerPhotoWallHandlers()
-  // Remaining domains (backup, window) are registered as each feature is migrated.
+  // Window/tray handlers are registered with the window feature.
 }
