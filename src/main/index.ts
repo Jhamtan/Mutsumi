@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { mkdirSync } from 'node:fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -9,6 +9,7 @@ import { WindowState } from './types'
 import { pathToFileURL } from 'node:url'
 import { trustIpcSender } from './ipc/security'
 import { isAllowedRendererNavigation, getSafeExternalUrl } from './window/navigation-policy'
+import { bindWindow, handleClose, showMainWindow, quitApplication } from './window/window-control'
 
 /**
  * Electron main-process entry point: acquires the single-instance lock, configures
@@ -49,6 +50,9 @@ const store = hasSingleInstanceLock
     })
   : undefined
 
+// System tray icon: left-click shows the main window, right-click opens the "Show window / Quit app" menu
+let tray: Tray | null = null
+
 function createWindow(): void {
   if (!store) return
 
@@ -79,6 +83,9 @@ function createWindow(): void {
       ? process.env['ELECTRON_RENDERER_URL']
       : pathToFileURL(join(__dirname, '../renderer/index.html')).href
   trustIpcSender(mainWindow.webContents, rendererUrl)
+
+  // Register the main window so tray/close behavior can control its show/hide
+  bindWindow(mainWindow)
 
   mainWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
     callback(false)
@@ -119,6 +126,9 @@ function createWindow(): void {
     }
   })
 
+  // When the title-bar "X" is clicked: hide to tray / quit per the persisted close behavior, or ask via the close dialog
+  mainWindow.on('close', handleClose)
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     const externalUrl = getSafeExternalUrl(details.url)
     if (externalUrl) {
@@ -140,6 +150,28 @@ function createWindow(): void {
 
 // The main process always reuses one initializer to manage the runtime lifecycle.
 const initializer = AppInitializer.getInstance()
+
+/**
+ * Creates the system tray icon. Left-click reveals the main window; right-click
+ * shows a context menu with "Show window" / "Quit app".
+ */
+function createTray(): void {
+  if (!hasSingleInstanceLock || tray) return
+  // The Windows tray needs a small icon; scale to 16×16 to avoid a large/blurry icon
+  const trayImage = nativeImage.createFromPath(icon).resize({ width: 16, height: 16 })
+  tray = new Tray(trayImage)
+  tray.setToolTip('Mutsumi')
+  // Left click: show and focus the main window
+  tray.on('click', () => showMainWindow())
+  // Right click (setContextMenu is triggered by right-click on Windows): show window / quit app
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: '显示窗口', click: () => showMainWindow() },
+      { type: 'separator' },
+      { label: '退出应用', click: () => quitApplication() }
+    ])
+  )
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -168,6 +200,7 @@ app.whenReady().then(async () => {
   })
 
   createWindow()
+  createTray()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

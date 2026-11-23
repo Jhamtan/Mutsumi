@@ -7,6 +7,7 @@ import { registerAuthHandlers } from './handlers/auth-handlers'
 import { registerNotebookHandlers } from './handlers/notebook-handlers'
 import { registerDiaryHandlers } from './handlers/diary-handlers'
 import { registerBackupHandlers } from './handlers/backup-handlers'
+import { registerWindowHandlers } from './handlers/window-handlers'
 import { registerItineraryHandlers } from './handlers/itinerary-handlers'
 import { registerPhotoWallHandlers } from './handlers/photowall-handlers'
 
@@ -19,7 +20,7 @@ export function registerIpcHandlers(): void {
   registerNotebookHandlers()
   registerDiaryHandlers()
   registerBackupHandlers()
+  registerWindowHandlers()
   registerItineraryHandlers()
   registerPhotoWallHandlers()
-  // Window/tray handlers are registered with the window feature.
 }

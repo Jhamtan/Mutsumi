@@ -1,5 +1,10 @@
+<script setup lang="ts">
+import CloseDialog from './components/CloseDialog.vue'
+</script>
+
 <template>
   <router-view />
+  <CloseDialog />
 </template>
 
 <style>
