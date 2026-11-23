@@ -29,6 +29,12 @@ export default defineConfig(
         extraFileExtensions: ['.vue'],
         parser: tseslint.parser
       }
+    },
+    // Auto-imported symbols (ref, computed, useRoute, ElMessage, ...) are
+    // resolved by the bundler and typed via the generated declaration files;
+    // TypeScript already rejects genuinely undefined identifiers.
+    rules: {
+      'no-undef': 'off'
     }
   },
   {
@@ -44,6 +50,14 @@ export default defineConfig(
           }
         }
       ]
+    }
+  },
+  {
+    files: ['src/renderer/**/*.{ts,vue}', 'tests/unit/**/*.ts'],
+    rules: {
+      // Renderer code relies on Vue composition and component handlers whose
+      // types are inferred, so an explicit return type adds little value.
+      '@typescript-eslint/explicit-function-return-type': 'off'
     }
   },
   eslintConfigPrettier
