@@ -19,9 +19,14 @@ const routes: RouteRecordRaw[] = [
         path: 'home',
         name: 'Home',
         component: () => import('../views/home/Home.vue')
+      },
+      {
+        path: 'notebooks',
+        name: 'Notebooks',
+        component: () => import('../views/notebook/NotebookList.vue')
       }
-      // notebooks, diaries, trips, photo wall and settings children are
-      // registered as each feature is migrated.
+      // diaries, trips, photo wall and settings children are registered as
+      // each feature is migrated.
     ]
   },
   {
