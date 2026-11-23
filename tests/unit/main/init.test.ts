@@ -4,6 +4,10 @@ vi.mock('electron', () => ({
   app: { exit: vi.fn() },
   dialog: { showErrorBox: vi.fn() }
 }))
+vi.mock('../../../src/main/database/db', () => ({
+  initDatabase: vi.fn(),
+  sequelize: undefined
+}))
 vi.mock('../../../src/main/logger', () => ({
   default: { info: vi.fn(), error: vi.fn() },
   setupLogger: vi.fn()

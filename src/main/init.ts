@@ -1,11 +1,12 @@
 import { app, dialog } from 'electron'
+import { initDatabase, sequelize } from './database/db'
 import { setupLogger } from './logger'
 import logger from './logger'
 
 /**
- * Bootstraps runtime dependencies in order (logging, directories) and owns
- * graceful shutdown cleanup. Database connection and IPC handler registration
- * are wired in as those subsystems are migrated.
+ * Bootstraps runtime dependencies in order (logging, directories, database)
+ * and owns graceful shutdown cleanup. IPC handler registration is wired in as
+ * those subsystems are migrated.
  */
 
 /**
@@ -42,6 +43,9 @@ export class AppInitializer {
       logger.info('Initializing application...')
       this.setupDirectories()
 
+      logger.info('Connecting to database...')
+      await initDatabase()
+
       logger.info('✅ Application initialized successfully.')
     } catch (error) {
       this.handleInitError(error)
@@ -49,13 +53,24 @@ export class AppInitializer {
   }
 
   /**
-   * Performs shutdown teardown. Database connection closure is added when
-   * persistence is migrated; the app is exiting regardless, so failures only log.
+   * Performs shutdown teardown, primarily closing the SQLite connection so its
+   * temporary files are released before the process exits.
    */
   public async cleanup(): Promise<void> {
     logger.info('🛑 Application is shutting down...')
-    // Database connection teardown is wired in once persistence is migrated.
-    logger.info('👋 Bye!')
+
+    try {
+      if (sequelize) {
+        logger.info('Closing database connection...')
+        await sequelize.close()
+        logger.info('✅ Database connection closed.')
+      }
+    } catch (error) {
+      logger.error('❌ Error during cleanup:', error)
+      // No need to throw here: the app is exiting anyway, just log it
+    } finally {
+      logger.info('👋 Bye!')
+    }
   }
 
   private setupDirectories(): void {

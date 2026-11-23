@@ -1,5 +1,5 @@
 import { resolve } from 'path'
-import { defineConfig } from 'electron-vite'
+import { defineConfig, swcPlugin } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import Icons from 'unplugin-icons/vite'
 import IconsResolver from 'unplugin-icons/resolver'
@@ -16,6 +16,7 @@ import Inspect from 'vite-plugin-inspect'
 
 export default defineConfig({
   main: {
+    plugins: [swcPlugin()],
     build: {
       externalizeDeps: true
     },
