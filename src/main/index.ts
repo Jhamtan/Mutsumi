@@ -73,10 +73,6 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
   // Register only windows created by the main process, verifying the exact page URL and main frame
   const rendererUrl =
     is.dev && process.env['ELECTRON_RENDERER_URL']
@@ -98,6 +94,15 @@ function createWindow(): void {
   })
   mainWindow.webContents.on('will-redirect', (event) => {
     if (!isAllowedRendererNavigation(event.url, rendererUrl)) event.preventDefault()
+  })
+
+  // Listen for the vue-app-ready signal from the renderer.
+  // Bind to this window's own webContents so another window's ready signal cannot trigger it early in multi-window setups.
+  mainWindow.webContents.ipc.once('vue-app-ready', () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
   })
 
   // Listen for window close to save state

@@ -2,11 +2,11 @@ import { app, dialog } from 'electron'
 import { initDatabase, sequelize } from './database/db'
 import { setupLogger } from './logger'
 import logger from './logger'
+import { registerIpcHandlers } from './ipc/handlers'
 
 /**
- * Bootstraps runtime dependencies in order (logging, directories, database)
- * and owns graceful shutdown cleanup. IPC handler registration is wired in as
- * those subsystems are migrated.
+ * Bootstraps runtime dependencies in order (logging, directories, database, IPC)
+ * and owns graceful shutdown cleanup for the database connection.
  */
 
 /**
@@ -45,6 +45,10 @@ export class AppInitializer {
 
       logger.info('Connecting to database...')
       await initDatabase()
+
+      // Register IPC: load all ipcMain.handle/on logic (load per-module)
+      logger.info('Registering IPC handlers...')
+      registerIpcHandlers()
 
       logger.info('✅ Application initialized successfully.')
     } catch (error) {

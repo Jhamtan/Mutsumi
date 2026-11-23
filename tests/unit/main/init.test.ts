@@ -12,6 +12,7 @@ vi.mock('../../../src/main/logger', () => ({
   default: { info: vi.fn(), error: vi.fn() },
   setupLogger: vi.fn()
 }))
+vi.mock('../../../src/main/ipc/handlers', () => ({ registerIpcHandlers: vi.fn() }))
 
 import { AppInitializer } from '../../../src/main/init'
 

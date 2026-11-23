@@ -1,8 +1,31 @@
 <script setup lang="ts">
 import { useI18nStore } from '@renderer/store/i18n'
+import { useUserStore } from '@renderer/store/user'
 
 const route = useRoute()
+const router = useRouter()
 const i18nStore = useI18nStore()
+const userStore = useUserStore()
+const recoveringSession = ref(false)
+
+async function retrySession(): Promise<void> {
+  if (recoveringSession.value) return
+  recoveringSession.value = true
+  try {
+    const status = await userStore.synchronizeFromMain()
+    if (status === 'unauthenticated') {
+      await router.replace({ path: '/login', query: { redirect: route.fullPath } })
+    } else if (status === 'unavailable') {
+      ElMessage.error(
+        i18nStore.locale === 'en'
+          ? 'Cannot confirm the session. Please retry.'
+          : '暂时无法确认登录状态，请重试。'
+      )
+    }
+  } finally {
+    recoveringSession.value = false
+  }
+}
 
 // The collapsed state persists to localStorage so the expand/collapse state is restored after restart.
 const COLLAPSED_KEY = 'nav:collapsed'
@@ -28,7 +51,7 @@ function isActive(path: string): boolean {
   return route.path === path || (path !== '/home' && route.path.startsWith(path))
 }
 
-function toggleCollapsed(): void {
+function toggleCollapsed() {
   collapsed.value = !collapsed.value
   localStorage.setItem(COLLAPSED_KEY, collapsed.value ? '1' : '0')
 }
@@ -86,14 +109,41 @@ function toggleCollapsed(): void {
     <main class="min-w-0 flex-1 overflow-hidden">
       <router-view v-slot="{ Component }">
         <transition name="page" mode="out-in">
-          <component :is="Component" :key="route.fullPath" />
+          <component
+            v-if="userStore.isLoggedIn"
+            :is="Component"
+            :key="`${userStore.sessionRevision}:${route.fullPath}`"
+          />
         </transition>
       </router-view>
+      <div v-if="!userStore.isLoggedIn" class="session-recovery">
+        <p>
+          {{ i18nStore.locale === 'en' ? 'Confirming your sign-in status…' : '正在确认登录状态…' }}
+        </p>
+        <button
+          type="button"
+          class="btn-secondary"
+          :disabled="recoveringSession"
+          @click="retrySession"
+        >
+          {{ i18nStore.locale === 'en' ? 'Retry session check' : '重新确认登录状态' }}
+        </button>
+      </div>
     </main>
   </div>
 </template>
 
 <style scoped>
+.session-recovery {
+  max-width: 360px;
+  margin: 64px auto;
+  padding: 24px;
+  text-align: center;
+  color: #607780;
+}
+.session-recovery p {
+  margin-bottom: 16px;
+}
 .workspace {
   background:
     radial-gradient(ellipse at 100% 0%, #e1eefc 0, transparent 50%),

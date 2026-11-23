@@ -8,27 +8,43 @@ import type { RouteRecordRaw } from 'vue-router'
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/login'
-  },
-  {
-    path: '/',
-    component: () => import('../views/AuthLayout.vue'),
-    meta: { guestOnly: true },
-    children: [
-      // login/register children are registered with the auth feature.
-    ]
+    redirect: '/home'
   },
   {
     path: '/',
     component: () => import('../views/WorkspaceLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      // signed-in children are registered as each feature is migrated.
+      {
+        path: 'home',
+        name: 'Home',
+        component: () => import('../views/home/Home.vue')
+      }
+      // notebooks, diaries, trips, photo wall and settings children are
+      // registered as each feature is migrated.
+    ]
+  },
+  {
+    path: '/',
+    component: () => import('../views/AuthLayout.vue'),
+    children: [
+      {
+        path: 'login',
+        name: 'Login',
+        component: () => import('../views/Login.vue'),
+        meta: { guestOnly: true }
+      },
+      {
+        path: 'register',
+        name: 'Register',
+        component: () => import('../views/Register.vue'),
+        meta: { guestOnly: true }
+      }
     ]
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/login'
+    redirect: '/home'
   }
 ]
 

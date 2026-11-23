@@ -14,6 +14,7 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run typecheck:tests",
     "test": "npm run test:unit && npm run test:regression",
     "test:unit": "vitest run",
+    "test:security": "vitest run --config vitest.security.config.mts",
     "test:regression": "node --test tests/*.test.cjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
