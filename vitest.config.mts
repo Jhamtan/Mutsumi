@@ -39,7 +39,20 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
-      include: ['src/common/password.ts']
+      include: [
+        'src/common/password.ts',
+        'src/main/ipc/{schemas,validator,security,handlers}.ts',
+        'src/renderer/src/composables/useEmailSuggest.ts',
+        'src/renderer/src/store/{user,i18n}.ts',
+        'src/renderer/src/components/{EmailInput,MarkdownEditor}.vue',
+        'src/renderer/src/utils/{draft-storage,draft-image-storage,markdown,markdown-format,markdown-help}.ts'
+      ],
+      thresholds: {
+        statements: 90,
+        branches: 90,
+        functions: 90,
+        lines: 90
+      }
     }
   }
 })
