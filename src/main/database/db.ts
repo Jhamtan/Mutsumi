@@ -13,6 +13,8 @@ import { DiaryImage } from './models/diary-image.model'
 import { Itinerary } from './models/itinerary.model'
 import { ItineraryPlace } from './models/itinerary-place.model'
 import { ItineraryLeg } from './models/itinerary-leg.model'
+import { PhotoWall } from './models/photowall.model'
+import { PhotoWallImage } from './models/photowall-image.model'
 import { databaseErrorDetails } from './errors'
 
 /** Shared SQLite Sequelize instance used by every repository. */
@@ -23,8 +25,18 @@ export const sequelize = new Sequelize({
     charset: 'utf8mb4',
     collate: 'utf8mb4_unicode_ci'
   },
-  // Register models. Photo-wall models are added as they land.
-  models: [User, Notebook, Diary, DiaryImage, Itinerary, ItineraryPlace, ItineraryLeg],
+  // Register models
+  models: [
+    User,
+    Notebook,
+    Diary,
+    DiaryImage,
+    Itinerary,
+    ItineraryPlace,
+    ItineraryLeg,
+    PhotoWall,
+    PhotoWallImage
+  ],
   // SQL may contain sensitive data; diagnostics log only allowlisted error types and codes
   logging: false
 })

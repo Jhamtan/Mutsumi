@@ -69,9 +69,18 @@ const routes: RouteRecordRaw[] = [
         name: 'TripEdit',
         component: () => import('../views/trip/TripEditor.vue'),
         props: true
+      },
+      {
+        path: 'photowall',
+        name: 'PhotoWall',
+        component: () => import('../views/photowall/PhotoWall.vue')
+      },
+      {
+        path: 'photowall/view',
+        name: 'PhotoWallView',
+        component: () => import('../views/photowall/PhotoWallView.vue')
       }
-      // photo wall and settings children are registered as each feature is
-      // migrated.
+      // settings children are registered with the settings feature.
     ]
   },
   {
