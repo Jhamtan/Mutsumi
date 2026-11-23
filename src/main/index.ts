@@ -6,6 +6,9 @@ import icon from '../../resources/icon.png?asset'
 import { AppInitializer } from './init'
 import Store from 'electron-store'
 import { WindowState } from './types'
+import { pathToFileURL } from 'node:url'
+import { trustIpcSender } from './ipc/security'
+import { isAllowedRendererNavigation, getSafeExternalUrl } from './window/navigation-policy'
 
 /**
  * Electron main-process entry point: acquires the single-instance lock, configures
@@ -74,6 +77,29 @@ function createWindow(): void {
     mainWindow.show()
   })
 
+  // Register only windows created by the main process, verifying the exact page URL and main frame
+  const rendererUrl =
+    is.dev && process.env['ELECTRON_RENDERER_URL']
+      ? process.env['ELECTRON_RENDERER_URL']
+      : pathToFileURL(join(__dirname, '../renderer/index.html')).href
+  trustIpcSender(mainWindow.webContents, rendererUrl)
+
+  mainWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
+    callback(false)
+  })
+  mainWindow.webContents.session.setPermissionCheckHandler(() => false)
+
+  // Navigation and redirects must not expand the registered page's trust boundary; external links go to the external browser.
+  mainWindow.webContents.on('will-navigate', (event) => {
+    if (!isAllowedRendererNavigation(event.url, rendererUrl)) event.preventDefault()
+  })
+  mainWindow.webContents.on('will-frame-navigate', (event) => {
+    if (!isAllowedRendererNavigation(event.url, rendererUrl)) event.preventDefault()
+  })
+  mainWindow.webContents.on('will-redirect', (event) => {
+    if (!isAllowedRendererNavigation(event.url, rendererUrl)) event.preventDefault()
+  })
+
   // Listen for window close to save state
   mainWindow.on('close', () => {
     // Window is not maximized
@@ -89,9 +115,12 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    void shell.openExternal(details.url).catch(() => {
-      console.warn('Unable to open external link')
-    })
+    const externalUrl = getSafeExternalUrl(details.url)
+    if (externalUrl) {
+      void shell.openExternal(externalUrl).catch(() => {
+        console.warn('Unable to open external link')
+      })
+    }
     return { action: 'deny' }
   })
 
