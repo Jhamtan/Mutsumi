@@ -37,6 +37,33 @@ export default defineConfig({
     }
   },
   renderer: {
+    optimizeDeps: {
+      // Resolver-generated style imports are invisible to Vite's source scan.
+      // Pre-bundle them before login so lazy routes cannot trigger a full reload
+      // that correctly revokes the Electron window's in-memory session.
+      include: [
+        'element-plus/es',
+        ...[
+          'base',
+          'checkbox',
+          'date-picker',
+          'dialog',
+          'form',
+          'form-item',
+          'input',
+          'input-number',
+          'message',
+          'message-box',
+          'option',
+          'radio',
+          'radio-group',
+          'select',
+          'skeleton',
+          'switch',
+          'tooltip'
+        ].map((component) => `element-plus/es/components/${component}/style/css`)
+      ]
+    },
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),

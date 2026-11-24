@@ -214,6 +214,48 @@ describe('主入口静态回归', () => {
   })
 })
 
+describe('开发依赖预构建回归', () => {
+  it('预构建首次进入行程及新建页面的组件依赖，避免刷新撤销会话', () => {
+    const configSource = readFileSync(
+      new URL('../../../electron.vite.config.ts', import.meta.url),
+      'utf8'
+    )
+    const configAst = ts.createSourceFile('config.ts', configSource, ts.ScriptTarget.Latest, true)
+    let includesExpression: ts.Expression | undefined
+    function visit(node: ts.Node): void {
+      if (
+        ts.isPropertyAssignment(node) &&
+        node.name.getText(configAst) === 'optimizeDeps' &&
+        ts.isObjectLiteralExpression(node.initializer)
+      ) {
+        const includes = node.initializer.properties.find(
+          (property) =>
+            ts.isPropertyAssignment(property) && property.name.getText(configAst) === 'include'
+        )
+        if (includes && ts.isPropertyAssignment(includes)) includesExpression = includes.initializer
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(configAst)
+    expect(includesExpression).toBeDefined()
+    const includes: unknown = runInNewContext(`(${includesExpression!.getText(configAst)})`)
+    expect(includes).toEqual(
+      expect.arrayContaining([
+        'element-plus/es',
+        ...[
+          'base',
+          'message-box',
+          'skeleton',
+          'date-picker',
+          'input-number',
+          'option',
+          'select'
+        ].map((component) => `element-plus/es/components/${component}/style/css`)
+      ])
+    )
+  })
+})
+
 describe('沙箱 preload 最小桥接', () => {
   it('只依赖 Electron，不挂载无隔离后备或泛化 toolkit API', () => {
     const preloadSource = readFileSync(
