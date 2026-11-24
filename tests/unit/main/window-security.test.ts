@@ -256,6 +256,56 @@ describe('开发依赖预构建回归', () => {
   })
 })
 
+describe('测试启动入口回归', () => {
+  const launcherSource = readFileSync(
+    new URL('../../../scripts/run-vitest.mjs', import.meta.url),
+    'utf8'
+  )
+  const launcherAst = ts.createSourceFile(
+    'launcher.mjs',
+    launcherSource,
+    ts.ScriptTarget.Latest,
+    true
+  )
+  const canonicalPathExpression = launcherAst.statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) => [...statement.declarationList.declarations])
+    .find(
+      (declaration) =>
+        ts.isIdentifier(declaration.name) && declaration.name.text === 'canonicalCliPath'
+    )?.initializer
+
+  it.each([
+    ['e:/项目目录/test #1/vitest.mjs', 'win32', 'E:/项目目录/test #1/vitest.mjs'],
+    ['E:\\project\\vitest.mjs', 'win32', 'E:\\project\\vitest.mjs'],
+    ['\\\\server\\share\\vitest.mjs', 'win32', '\\\\server\\share\\vitest.mjs'],
+    ['/workspace/vitest.mjs', 'linux', '/workspace/vitest.mjs'],
+    ['e:/workspace/vitest.mjs', 'darwin', 'e:/workspace/vitest.mjs']
+  ])('只规范化 Windows 盘符，不改目录或其他平台路径：%s (%s)', (cliPath, platform, expected) => {
+    expect(canonicalPathExpression).toBeDefined()
+    const actual: unknown = runInNewContext(`(${canonicalPathExpression!.getText(launcherAst)})`, {
+      cliPath,
+      process: { platform }
+    })
+    expect(actual).toBe(expected)
+  })
+
+  it('所有测试命令复用统一入口且保留命令行参数', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')
+    ) as { scripts: Record<string, string> }
+    expect(manifest.scripts).toMatchObject({
+      'test:unit': 'node scripts/run-vitest.mjs run',
+      'test:security': 'node scripts/run-vitest.mjs run --config vitest.security.config.mts',
+      'test:watch': 'node scripts/run-vitest.mjs',
+      'test:coverage': 'node scripts/run-vitest.mjs run --coverage'
+    })
+    expect(launcherSource).toContain('process.argv[1] = canonicalCliPath')
+    expect(launcherSource).not.toMatch(/process\.argv\s*=/)
+    expect(launcherSource).toContain('await import(pathToFileURL(canonicalCliPath).href)')
+  })
+})
+
 describe('沙箱 preload 最小桥接', () => {
   it('只依赖 Electron，不挂载无隔离后备或泛化 toolkit API', () => {
     const preloadSource = readFileSync(
