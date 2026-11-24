@@ -154,8 +154,14 @@ tests/
   Import creates a new, unlocked notebook in the current account without
   overwriting existing notebooks. The native file dialogs remain main-process
   controlled; cancellation and invalid archives do not change existing data.
-- **Local diary drafts** — the Markdown auto-draft helper is not wired to the
-  diary pages yet.
+- **Local diary drafts** — the editor restores per-account/per-notebook/per-entry
+  drafts, autosaves text after editing pauses, and keeps the selected time and
+  draft-image references. Pending edits are flushed when leaving or reloading.
+  A successful entry save clears its draft and separate image records; failed
+  or stale saves retain the draft. **Discard draft** requires confirmation and
+  does not delete a saved entry. Drafts use **unencrypted localStorage**, not the
+  encrypted diary database or backup format; use a trusted device. Storage
+  failures are reported without blocking a normal entry save.
 - **Wallpaper Engine** — in the photo wall, choose **Export wallpaper**, extract
   the archive, then in the Wallpaper Engine editor click **Create Wallpaper** and
   drop the extracted `index.html` into it. A combo property `Scroll speed`
