@@ -12,13 +12,12 @@
     "target": "ES6",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": ".",
     "paths": {
       "@renderer/*": [
-        "src/renderer/src/*"
+        "./src/renderer/src/*"
       ],
       "@common/*": [
-        "src/common/*"
+        "./src/common/*"
       ]
     }
   }
