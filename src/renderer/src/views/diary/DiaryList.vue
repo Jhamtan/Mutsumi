@@ -18,6 +18,7 @@ const notebookName = computed(() => notebookStore.current?.name ?? '')
 const diaries = ref<DiarySummaryDTO[]>([])
 const loading = ref(true)
 const locking = ref(false)
+const exporting = ref(false)
 const page = ref(1)
 const pageSize = ref(DIARY_PAGE_SIZE_DEFAULT)
 const pageSizeInput = ref<number | string>(DIARY_PAGE_SIZE_DEFAULT)
@@ -92,8 +93,37 @@ function goNew() {
   router.push(`/notebooks/${notebookId.value}/diaries/new`)
 }
 
+async function exportBackup() {
+  if (exporting.value || locking.value) return
+  const operation = operations.capture()
+  if (!operation.isActive()) return
+  const id = notebookId.value
+  exporting.value = true
+  try {
+    // Instead of passing paginated diary IDs, the main process exports the entire diary
+    // and images and selects the save path.
+    const response = await operation.call(
+      () => window.api.exportDiaryBackup({ notebookId: id }),
+      id
+    )
+    if (!operation.isActive() || !response) return
+    if (!response.success || !response.data) {
+      ElMessage.error(i18nStore.t.backup.exportFail)
+      return
+    }
+    if (response.data.canceled) return
+    ElMessage.success(
+      i18nStore.t.backup.exportSuccess.replace('{count}', String(response.data.diaryCount ?? 0))
+    )
+  } catch {
+    if (operation.isActive()) ElMessage.error(i18nStore.t.backup.exportFail)
+  } finally {
+    if (operation.isActive()) exporting.value = false
+  }
+}
+
 async function handleLock() {
-  if (locking.value) return
+  if (locking.value || exporting.value) return
   const operation = operations.capture()
   if (!operation.isActive()) return
   const id = notebookId.value
@@ -136,11 +166,24 @@ onMounted(load)
         <p class="eyebrow mt-3">{{ i18nStore.t.diary.listTitle }}</p>
         <h1 class="page-head-title break-words">{{ notebookName }}</h1>
       </div>
-      <div class="flex items-center gap-2.5">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button
+          type="button"
+          class="btn-secondary export-button"
+          data-testid="export-backup"
+          :disabled="exporting || locking"
+          :aria-busy="exporting"
+          :title="i18nStore.t.backup.exportHint"
+          @click="exportBackup"
+        >
+          <span v-if="exporting" class="i-ep-loading animate-spin" aria-hidden="true"></span>
+          {{ exporting ? i18nStore.t.backup.exporting : i18nStore.t.backup.export }}
+        </button>
         <button
           type="button"
           class="btn-secondary lock-button"
-          :disabled="locking"
+          data-testid="lock-notebook"
+          :disabled="locking || exporting"
           @click="handleLock"
         >
           <span class="i-ep-lock" aria-hidden="true"></span>
@@ -282,7 +325,8 @@ onMounted(load)
 }
 
 /* Covers the width/height of btn-*, used only on list pages. */
-.lock-button {
+.lock-button,
+.export-button {
   width: auto;
   min-height: 42px;
   padding: 0 16px;

@@ -130,6 +130,28 @@ export const useI18nStore = defineStore('i18n', () => {
         lockFail: '锁定失败，请重试',
         updatedAt: '更新于 {time}'
       },
+      backup: {
+        export: '导出日记备份',
+        exportHint:
+          '备份当前日记本的全部已保存日记和图片（不含未提交草稿），不限当前页。存档密码沿用日记本密码。',
+        exporting: '正在备份…',
+        exportSuccess: '已备份 {count} 篇日记',
+        exportFail: '备份导出失败，请重试。',
+        import: '导入日记备份',
+        importTitle: '导入加密日记备份',
+        importHint: '输入存档密码后选择备份文件。将创建新日记本，不覆盖现有内容。',
+        password: '存档密码',
+        passwordPlaceholder: '输入导出时的日记本密码',
+        passwordHint:
+          '新日记本继续使用此密码。密码仅用于本次导入，提交或关闭后清空，不写入本机草稿。',
+        passwordInvalid: '密码需为 8–128 个字符，且 UTF-8 编码不超过 256 字节。',
+        passwordWrong: '存档密码不正确，请重新输入后重试。',
+        importing: '正在导入…',
+        importSubmit: '选择文件并导入',
+        importSuccess: '已导入 {count} 篇日记到「{name}」',
+        importFail: '备份导入失败，请重试。',
+        invalidArchive: '备份文件无效、损坏或超过安全限制，未导入任何内容。'
+      },
       diary: {
         back: '返回日记本',
         listTitle: '日记',
@@ -458,6 +480,30 @@ export const useI18nStore = defineStore('i18n', () => {
         lockSuccess: 'Notebook locked',
         lockFail: 'Failed to lock. Please try again.',
         updatedAt: 'Updated {time}'
+      },
+      backup: {
+        export: 'Export diary backup',
+        exportHint:
+          'Back up all saved entries and images in this notebook, not just this page. Unsaved drafts are excluded. Use the notebook password to restore.',
+        exporting: 'Backing up…',
+        exportSuccess: '{count} entries backed up',
+        exportFail: 'Could not export the backup. Please retry.',
+        import: 'Import diary backup',
+        importTitle: 'Import encrypted diary backup',
+        importHint:
+          'Enter the archive password, then choose a backup file. A new notebook is created; existing data is not overwritten.',
+        password: 'Archive password',
+        passwordPlaceholder: 'Notebook password used when exporting',
+        passwordHint:
+          'The new notebook uses this password. It is cleared on submit or close and never persisted in drafts.',
+        passwordInvalid: 'Use 8–128 characters and at most 256 UTF-8 bytes.',
+        passwordWrong: 'Incorrect archive password. Enter it again and retry.',
+        importing: 'Importing…',
+        importSubmit: 'Choose file and import',
+        importSuccess: '{count} entries imported into "{name}"',
+        importFail: 'Could not import the backup. Please retry.',
+        invalidArchive:
+          'The archive is invalid, damaged or exceeds safety limits. Nothing was imported.'
       },
       diary: {
         back: 'Back to notebooks',

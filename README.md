@@ -147,10 +147,15 @@ tests/
 
 ## Backup & Wallpaper Engine
 
-- **Diary backup** — from a notebook, export an encrypted `.zip` archive, then
-  import it (optionally into a fresh account) with the archive password. Backup
-  is currently a main-process/preload capability; the Markdown auto-draft helper
-  is not wired to the diary pages yet.
+- **Diary backup** — choose **Export diary backup** in a notebook's diary list
+  to export all its saved entries and images, not just the current page, into
+  an encrypted `.zip` archive. Unsaved local drafts are not included. In **My notebooks**, choose **Import diary backup**,
+  enter the notebook password used when exporting, and select the archive.
+  Import creates a new, unlocked notebook in the current account without
+  overwriting existing notebooks. The native file dialogs remain main-process
+  controlled; cancellation and invalid archives do not change existing data.
+- **Local diary drafts** — the Markdown auto-draft helper is not wired to the
+  diary pages yet.
 - **Wallpaper Engine** — in the photo wall, choose **Export wallpaper**, extract
   the archive, then in the Wallpaper Engine editor click **Create Wallpaper** and
   drop the extracted `index.html` into it. A combo property `Scroll speed`

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { NotebookSummaryDTO } from '@common/types'
+import { isValidNotebookPassword } from '@common/notebook-password'
 import { useI18nStore } from '@renderer/store/i18n'
 import { useNotebookStore } from '@renderer/store/notebook'
+import { useUserStore } from '@renderer/store/user'
 import { formatDateTime } from '@renderer/utils/date'
 import { useSessionOperation } from '@renderer/composables/useSessionOperation'
 
@@ -10,6 +12,7 @@ const route = useRoute()
 const operations = useSessionOperation()
 const i18nStore = useI18nStore()
 const notebookStore = useNotebookStore()
+const userStore = useUserStore()
 
 const notebooks = ref<NotebookSummaryDTO[]>([])
 const loading = ref(true)
@@ -21,6 +24,83 @@ const createForm = reactive({ name: '', password: '', confirm: '' })
 const unlockVisible = ref(false)
 const unlockTarget = ref<NotebookSummaryDTO | null>(null)
 const unlockPassword = ref('')
+
+const importVisible = ref(false)
+const importPassword = ref('')
+const importing = ref(false)
+const validImportPassword = computed(() => isValidNotebookPassword(importPassword.value))
+
+function setImportVisible(visible: boolean) {
+  if (importing.value) return
+  importVisible.value = visible
+  if (!visible) importPassword.value = ''
+}
+
+function openImport() {
+  if (importing.value || submitting.value || createVisible.value || unlockVisible.value) return
+  if (!operations.capture().isActive()) return
+  importPassword.value = ''
+  importVisible.value = true
+}
+
+async function submitImport() {
+  if (importing.value || submitting.value || !importVisible.value) return
+  const operation = operations.capture()
+  if (!operation.isActive()) return
+  if (!isValidNotebookPassword(importPassword.value)) {
+    ElMessage.warning(i18nStore.t.backup.passwordInvalid)
+    return
+  }
+  const password = importPassword.value
+  importPassword.value = ''
+  importing.value = true
+  try {
+    // The password is only used to decrypt the archive; file selection, new copy creation,
+    // and unlocking are all handled by the main process.
+    const response = await operation.call(() => window.api.importDiaryBackup({ password }))
+    if (!operation.isActive() || !response) return
+    if (!response.success) {
+      const message =
+        response.code === 'INVALID_NOTEBOOK_PASSWORD'
+          ? i18nStore.t.backup.passwordWrong
+          : response.code === 'INVALID_BACKUP'
+            ? i18nStore.t.backup.invalidArchive
+            : i18nStore.t.backup.importFail
+      ElMessage.error(message)
+      return
+    }
+    if (response.data?.canceled) return
+    if (!response.data?.notebook) {
+      ElMessage.error(i18nStore.t.backup.importFail)
+      return
+    }
+    const notebook = response.data.notebook
+    notebookStore.setCurrent(notebook)
+    importVisible.value = false
+    ElMessage.success(
+      i18nStore.t.backup.importSuccess
+        .replace('{count}', String(response.data.diaryCount ?? 0))
+        .replace('{name}', () => notebook.name)
+    )
+    await router.push(`/notebooks/${notebook.id}/diaries`)
+    if (!operation.isActive()) return
+  } catch {
+    if (operation.isActive()) ElMessage.error(i18nStore.t.backup.importFail)
+  } finally {
+    if (operation.isActive()) importing.value = false
+  }
+}
+
+watch(
+  () => [route.fullPath, userStore.sessionRevision],
+  () => {
+    importPassword.value = ''
+  },
+  { flush: 'sync' }
+)
+onBeforeUnmount(() => {
+  importPassword.value = ''
+})
 
 async function load() {
   const operation = operations.capture()
@@ -45,6 +125,7 @@ async function load() {
 }
 
 function openCreate() {
+  if (importing.value || importVisible.value) return
   if (!operations.capture().isActive()) return
   createForm.name = ''
   createForm.password = ''
@@ -53,7 +134,7 @@ function openCreate() {
 }
 
 async function submitCreate() {
-  if (submitting.value) return
+  if (submitting.value || importing.value || importVisible.value) return
   if (!createForm.name.trim()) {
     ElMessage.warning(i18nStore.t.notebook.nameReq)
     return
@@ -95,6 +176,7 @@ async function submitCreate() {
 }
 
 function openNotebook(notebook: NotebookSummaryDTO) {
+  if (importing.value || importVisible.value) return
   if (!operations.capture().isActive()) return
   if (notebookStore.isUnlocked(notebook.id)) {
     notebookStore.setCurrent(notebook)
@@ -107,7 +189,7 @@ function openNotebook(notebook: NotebookSummaryDTO) {
 }
 
 async function submitUnlock() {
-  if (submitting.value || !unlockTarget.value) return
+  if (submitting.value || importing.value || importVisible.value || !unlockTarget.value) return
   if (!unlockPassword.value) {
     ElMessage.warning(i18nStore.t.notebook.passReq)
     return
@@ -153,10 +235,27 @@ onMounted(load)
         <h1 class="page-head-title">{{ i18nStore.t.notebook.title }}</h1>
         <p class="page-subtitle">{{ i18nStore.t.notebook.subtitle }}</p>
       </div>
-      <button type="button" class="btn-primary create-button" @click="openCreate">
-        <span class="i-ep-plus" aria-hidden="true"></span>
-        {{ i18nStore.t.notebook.create }}
-      </button>
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button
+          type="button"
+          class="btn-secondary import-button"
+          data-testid="import-backup"
+          :disabled="importing || submitting"
+          @click="openImport"
+        >
+          {{ i18nStore.t.backup.import }}
+        </button>
+        <button
+          type="button"
+          class="btn-primary create-button"
+          data-testid="create-notebook"
+          :disabled="importing"
+          @click="openCreate"
+        >
+          <span class="i-ep-plus" aria-hidden="true"></span>
+          {{ i18nStore.t.notebook.create }}
+        </button>
+      </div>
     </header>
 
     <div v-if="loading" class="card-grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
@@ -177,6 +276,8 @@ onMounted(load)
         :key="notebook.id"
         type="button"
         class="app-surface notebook-card"
+        data-testid="notebook-card"
+        :disabled="importing"
         @click="openNotebook(notebook)"
       >
         <div
@@ -203,6 +304,60 @@ onMounted(load)
         ></span>
       </button>
     </div>
+
+    <el-dialog
+      :model-value="importVisible"
+      :title="i18nStore.t.backup.importTitle"
+      width="min(420px, 92vw)"
+      append-to-body
+      data-testid="import-backup-dialog"
+      :show-close="!importing"
+      :close-on-click-modal="!importing"
+      :close-on-press-escape="!importing"
+      @update:model-value="setImportVisible"
+    >
+      <p class="mb-[14px] text-[13px] text-ink-muted">{{ i18nStore.t.backup.importHint }}</p>
+      <form class="custom-form" data-testid="import-backup-form" @submit.prevent="submitImport">
+        <label class="block text-[13px]" for="backup-password">{{
+          i18nStore.t.backup.password
+        }}</label>
+        <input
+          id="backup-password"
+          v-model="importPassword"
+          type="password"
+          autocomplete="off"
+          class="backup-password-input"
+          data-testid="backup-password"
+          aria-describedby="backup-password-hint"
+          :placeholder="i18nStore.t.backup.passwordPlaceholder"
+          :disabled="importing"
+        />
+        <p id="backup-password-hint" class="mb-5 text-xs text-ink-muted">
+          {{ i18nStore.t.backup.passwordHint }}
+        </p>
+        <div class="flex gap-2.5">
+          <button
+            type="button"
+            class="btn-secondary"
+            data-testid="cancel-import-backup"
+            :disabled="importing"
+            @click="setImportVisible(false)"
+          >
+            {{ i18nStore.t.close.cancel }}
+          </button>
+          <button
+            type="submit"
+            class="btn-primary"
+            data-testid="submit-import-backup"
+            :disabled="importing || submitting || !validImportPassword"
+            :aria-busy="importing"
+          >
+            <span v-if="importing" class="i-ep-loading animate-spin" aria-hidden="true"></span>
+            {{ importing ? i18nStore.t.backup.importing : i18nStore.t.backup.importSubmit }}
+          </button>
+        </div>
+      </form>
+    </el-dialog>
 
     <el-dialog
       v-model="createVisible"
@@ -268,10 +423,20 @@ onMounted(load)
 
 <style scoped>
 /* Cover the width/height of  btn-primary , used only on this page */
-.create-button {
+.create-button,
+.import-button {
   width: auto;
   min-height: 42px;
   padding: 0 18px;
+}
+
+.backup-password-input {
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: transparent;
 }
 
 .notebook-card {

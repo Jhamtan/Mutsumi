@@ -7,6 +7,7 @@ import type { DiarySummaryDTO, IpcResponse, UserDTO } from '../../../src/common/
 import type { DiaryPageDTO } from '../../../src/common/diary'
 import { useNotebookStore } from '../../../src/renderer/src/store/notebook'
 import { useUserStore } from '../../../src/renderer/src/store/user'
+import { useI18nStore } from '../../../src/renderer/src/store/i18n'
 
 /**
  * Tests the diary list view: card rendering with title/preview, empty state,
@@ -57,15 +58,18 @@ function pageResult(
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((done) => {
+  let reject!: (reason: Error) => void
+  const promise = new Promise<T>((done, fail) => {
     resolve = done
+    reject = fail
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 let api: {
   listDiaryPage: ReturnType<typeof vi.fn<IAppApi['listDiaryPage']>>
   lockNotebook: ReturnType<typeof vi.fn<IAppApi['lockNotebook']>>
+  exportDiaryBackup: ReturnType<typeof vi.fn<IAppApi['exportDiaryBackup']>>
 }
 
 function makeRouter() {
@@ -118,10 +122,14 @@ beforeEach(() => {
   })
   for (const message of Object.values(messages)) message.mockClear()
   vi.stubGlobal('ElMessage', messages)
-  api = { listDiaryPage: vi.fn(), lockNotebook: vi.fn() }
+  api = { listDiaryPage: vi.fn(), lockNotebook: vi.fn(), exportDiaryBackup: vi.fn() }
   ;(window as unknown as { api: unknown }).api = api
   api.listDiaryPage.mockResolvedValue(pageResult())
   api.lockNotebook.mockResolvedValue({ success: true, data: null })
+  api.exportDiaryBackup.mockResolvedValue({
+    success: true,
+    data: { canceled: false, diaryCount: 45 }
+  })
 })
 
 afterEach(() => {
@@ -129,6 +137,184 @@ afterEach(() => {
   wrappers.clear()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+})
+
+describe('DiaryList 日记备份', () => {
+  it('页头导出整本及图片，仅传 notebookId，不传当前分页 IDs', async () => {
+    api.listDiaryPage.mockResolvedValueOnce(pageResult([diaries[1]], 45, 2))
+    const { wrapper, router } = await mountList()
+    const store = useNotebookStore()
+    store.markUnlocked(7)
+    const reset = vi.spyOn(store, 'reset')
+    await wrapper.get('[data-testid="export-backup"]').trigger('click')
+    await flushPromises()
+    expect(api.exportDiaryBackup).toHaveBeenCalledExactlyOnceWith({ notebookId: 7 })
+    expect(api.listDiaryPage).toHaveBeenCalledTimes(1)
+    expect(messages.success).toHaveBeenCalledWith(
+      useI18nStore().t.backup.exportSuccess.replace('{count}', '45')
+    )
+    expect(wrapper.get('[data-testid="page-status"]').text()).toContain('2 / 3')
+    expect(wrapper.findAll('[data-testid="diary-card"]')).toHaveLength(1)
+    expect(store.isUnlocked(7)).toBe(true)
+    expect(reset).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe('/notebooks/7/diaries')
+    expect(wrapper.get('[data-testid="export-backup"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('空本也能导出并显示零篇成功提示', async () => {
+    api.listDiaryPage.mockResolvedValueOnce(pageResult([]))
+    api.exportDiaryBackup.mockResolvedValueOnce({
+      success: true,
+      data: { canceled: false, diaryCount: 0 }
+    })
+    const { wrapper } = await mountList()
+    await wrapper.get('[data-testid="export-backup"]').trigger('click')
+    await flushPromises()
+    expect(api.exportDiaryBackup).toHaveBeenCalledExactlyOnceWith({ notebookId: 7 })
+    expect(messages.success).toHaveBeenCalledWith(
+      useI18nStore().t.backup.exportSuccess.replace('{count}', '0')
+    )
+  })
+
+  it('取消原生保存静默处理且保留当前分页数据', async () => {
+    api.exportDiaryBackup.mockResolvedValueOnce({ success: true, data: { canceled: true } })
+    const { wrapper, router } = await mountList()
+    await wrapper.get('[data-testid="export-backup"]').trigger('click')
+    await flushPromises()
+    expect(messages.success).not.toHaveBeenCalled()
+    expect(messages.error).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[data-testid="diary-card"]')).toHaveLength(2)
+    expect(router.currentRoute.value.path).toBe('/notebooks/7/diaries')
+    expect(wrapper.get('[data-testid="export-backup"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it.each(['response', 'exception', 'missing-data'])(
+    '导出失败使用本地化通用提示且允许重试：%s',
+    async (mode) => {
+      if (mode === 'response')
+        api.exportDiaryBackup.mockResolvedValueOnce({
+          success: false,
+          code: 'RATE_LIMITED',
+          message: '不向界面泄露内部路径'
+        })
+      else if (mode === 'exception')
+        api.exportDiaryBackup.mockRejectedValueOnce(new Error('合成传输异常'))
+      else api.exportDiaryBackup.mockResolvedValueOnce({ success: true })
+      const { wrapper } = await mountList()
+      await wrapper.get('[data-testid="export-backup"]').trigger('click')
+      await flushPromises()
+      expect(messages.success).not.toHaveBeenCalled()
+      expect(messages.error).toHaveBeenCalledExactlyOnceWith(useI18nStore().t.backup.exportFail)
+      expect(wrapper.findAll('[data-testid="diary-card"]')).toHaveLength(2)
+      expect(useUserStore().currentUser?.id).toBe(user.id)
+      expect(wrapper.get('[data-testid="export-backup"]').attributes('disabled')).toBeUndefined()
+    }
+  )
+
+  it('导出 pending 禁止重复导出和锁本，完成后恢复按钮', async () => {
+    const pending = deferred<Awaited<ReturnType<IAppApi['exportDiaryBackup']>>>()
+    api.exportDiaryBackup.mockReturnValueOnce(pending.promise)
+    const { wrapper } = await mountList()
+    await wrapper.get('[data-testid="export-backup"]').trigger('click')
+    expect(wrapper.get('[data-testid="export-backup"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="export-backup"]').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('[data-testid="lock-notebook"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="export-backup"]').trigger('click')
+    await wrapper.get('[data-testid="lock-notebook"]').trigger('click')
+    expect(api.exportDiaryBackup).toHaveBeenCalledTimes(1)
+    expect(api.lockNotebook).not.toHaveBeenCalled()
+    pending.resolve({ success: true, data: { canceled: true } })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="lock-notebook"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="export-backup"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('锁本 pending 不允许导出', async () => {
+    const pending = deferred<Awaited<ReturnType<IAppApi['lockNotebook']>>>()
+    api.lockNotebook.mockReturnValueOnce(pending.promise)
+    const { wrapper } = await mountList()
+    await wrapper.get('[data-testid="lock-notebook"]').trigger('click')
+    expect(wrapper.get('[data-testid="export-backup"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="export-backup"]').trigger('click')
+    expect(api.exportDiaryBackup).not.toHaveBeenCalled()
+    pending.resolve({ success: false, code: 'INTERNAL_ERROR' })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="export-backup"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it.each(['AUTH_REQUIRED', 'NOTEBOOK_LOCKED'] as const)(
+    '导出通过共享会话处理 %s，不叠加备份错误',
+    async (code) => {
+      api.exportDiaryBackup.mockResolvedValueOnce({ success: false, code })
+      const { wrapper, router } = await mountList()
+      const store = useNotebookStore()
+      store.markUnlocked(7)
+      store.markUnlocked(8)
+      await wrapper.get('[data-testid="export-backup"]').trigger('click')
+      await flushPromises()
+      expect(messages.error).not.toHaveBeenCalled()
+      expect(messages.success).not.toHaveBeenCalled()
+      expect(store.isUnlocked(7)).toBe(false)
+      if (code === 'AUTH_REQUIRED') {
+        expect(useUserStore().currentUser).toBeNull()
+        expect(router.currentRoute.value.path).toBe('/login')
+        expect(router.currentRoute.value.query.redirect).toBe('/notebooks/7/diaries')
+      } else {
+        expect(useUserStore().currentUser?.id).toBe(user.id)
+        expect(store.isUnlocked(8)).toBe(true)
+        expect(router.currentRoute.value.path).toBe('/notebooks')
+        expect(router.currentRoute.value.query.unlock).toBe('7')
+      }
+    }
+  )
+
+  describe.each(['account', 'same-session', 'route', 'unmount'] as const)(
+    '导出 owner 失效：%s',
+    (change) => {
+      it.each(['success', 'AUTH_REQUIRED', 'NOTEBOOK_LOCKED', 'exception'] as const)(
+        '忽略迟到 %s，不改新会话或弹出提示',
+        async (result) => {
+          const pending = deferred<Awaited<ReturnType<IAppApi['exportDiaryBackup']>>>()
+          api.exportDiaryBackup.mockReturnValueOnce(pending.promise)
+          const { wrapper, router } = await mountList()
+          await wrapper.get('[data-testid="export-backup"]').trigger('click')
+          if (change === 'account') useUserStore().setUser({ ...user, id: 99 })
+          else if (change === 'same-session') useUserStore().setUser({ ...user })
+          else if (change === 'route') await router.push('/notebooks')
+          else {
+            wrapper.unmount()
+            wrappers.delete(wrapper)
+          }
+          const pathAfterChange = router.currentRoute.value.fullPath
+          const store = useNotebookStore()
+          store.markUnlocked(7)
+          const reset = vi.spyOn(store, 'reset')
+          const lock = vi.spyOn(store, 'lockNotebook')
+          if (result === 'exception') pending.reject(new Error('迟到合成异常'))
+          else
+            pending.resolve(
+              result === 'success'
+                ? { success: true, data: { canceled: false, diaryCount: 900 } }
+                : { success: false, code: result }
+            )
+          await flushPromises()
+          expect(messages.success).not.toHaveBeenCalled()
+          expect(messages.error).not.toHaveBeenCalled()
+          expect(store.isUnlocked(7)).toBe(true)
+          expect(reset).not.toHaveBeenCalled()
+          expect(lock).not.toHaveBeenCalled()
+          expect(useUserStore().currentUser?.id).toBe(change === 'account' ? 99 : user.id)
+          expect(router.currentRoute.value.fullPath).toBe(pathAfterChange)
+          if (change !== 'unmount') {
+            expect(wrapper.get('[data-testid="export-backup"]').attributes('aria-busy')).toBe(
+              'true'
+            )
+            expect(wrapper.findAll('[data-testid="diary-card"]')).toHaveLength(2)
+          }
+        }
+      )
+    }
+  )
 })
 
 describe('DiaryList', () => {
