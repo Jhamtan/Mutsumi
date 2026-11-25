@@ -39,16 +39,61 @@ function loadCollapsed(): boolean {
 }
 
 const collapsed = ref(loadCollapsed())
+const lastTripsPath = ref('/trips')
+
+watch(
+  [() => userStore.sessionRevision, () => userStore.currentUser?.id],
+  () => {
+    lastTripsPath.value = '/trips'
+  },
+  { flush: 'sync' }
+)
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (!userStore.isLoggedIn || userStore.authenticationPending || userStore.logoutPending) return
+    const match = /^\/trips(?:\/(new|abandoned)|\/(\d+)(\/edit)?)?\/?$/.exec(route.path)
+    if (!match) return
+    if (match[2] && (!Number.isSafeInteger(Number(match[2])) || Number(match[2]) <= 0)) return
+    let expectedName = 'Trips'
+    if (match[1]) {
+      expectedName = match[1] === 'new' ? 'TripNew' : 'TripAbandoned'
+    } else if (match[2]) {
+      expectedName = match[3] ? 'TripEdit' : 'TripDetail'
+    }
+    const resolved = router.resolve(route.fullPath)
+    if (resolved.matched.length > 0 && resolved.name === expectedName) {
+      lastTripsPath.value = route.fullPath
+    }
+  },
+  { immediate: true, flush: 'sync' }
+)
 
 const navItems = computed(() => [
-  { label: i18nStore.t.nav.home, path: '/home', icon: 'i-ep-house' },
-  { label: i18nStore.t.nav.trips, path: '/trips', icon: 'i-ep-position' },
-  { label: i18nStore.t.nav.photowall, path: '/photowall', icon: 'i-ep-picture' },
-  { label: i18nStore.t.nav.notebooks, path: '/notebooks', icon: 'i-ep-notebook' }
+  { label: i18nStore.t.nav.home, path: '/home', activeRoot: '/home', icon: 'i-ep-house' },
+  {
+    label: i18nStore.t.nav.trips,
+    path: lastTripsPath.value,
+    activeRoot: '/trips',
+    icon: 'i-ep-position'
+  },
+  {
+    label: i18nStore.t.nav.photowall,
+    path: '/photowall',
+    activeRoot: '/photowall',
+    icon: 'i-ep-picture'
+  },
+  {
+    label: i18nStore.t.nav.notebooks,
+    path: '/notebooks',
+    activeRoot: '/notebooks',
+    icon: 'i-ep-notebook'
+  }
 ])
 
 function isActive(path: string): boolean {
-  return route.path === path || (path !== '/home' && route.path.startsWith(path))
+  return route.path === path || (path !== '/home' && route.path.startsWith(`${path}/`))
 }
 
 function toggleCollapsed() {
@@ -82,10 +127,10 @@ function toggleCollapsed() {
       <nav class="flex flex-col gap-1" aria-label="主导航">
         <router-link
           v-for="item in navItems"
-          :key="item.path"
+          :key="item.activeRoot"
           :to="item.path"
           class="nav-item"
-          :class="{ active: isActive(item.path) }"
+          :class="{ active: isActive(item.activeRoot) }"
           :title="collapsed ? item.label : ''"
         >
           <span :class="`${item.icon} text-lg`" aria-hidden="true"></span>
@@ -110,8 +155,8 @@ function toggleCollapsed() {
       <router-view v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component
-            v-if="userStore.isLoggedIn"
             :is="Component"
+            v-if="userStore.isLoggedIn"
             :key="`${userStore.sessionRevision}:${route.fullPath}`"
           />
         </transition>

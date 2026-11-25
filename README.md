@@ -24,8 +24,9 @@ photo wall that can be exported as a Wallpaper Engine web wallpaper.
   its subtitle uses the departure's local calendar date. Click the diagram to
   edit the name, places and travel legs in dialogs; add intermediate stops from
   the top-right control. Saving opens the display page; the editor's back
-  control confirms discarding unsaved work. Abandoned trips can still be
-  restored or permanently deleted.
+  control confirms discarding unsaved work. The Trips sidebar returns to the
+  last valid trip subpage in the current sign-in session, including abandoned
+  trips, which can still be restored or permanently deleted.
 - **Photo wall** — upload photos plus an optional foreground character cutout,
   preview a scrolling wall, and export a Wallpaper Engine web wallpaper archive.
 - **Diary backup** — export/import an encrypted, portable notebook archive
