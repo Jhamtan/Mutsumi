@@ -2,7 +2,7 @@
 import type { ItinerarySummaryDTO } from '@common/types'
 import { useI18nStore } from '@renderer/store/i18n'
 import { useSessionOperation } from '@renderer/composables/useSessionOperation'
-import { formatClock } from '@renderer/utils/itinerary'
+import { formatClock, formatTripDate } from '@renderer/utils/itinerary'
 
 const router = useRouter()
 const operations = useSessionOperation()
@@ -31,7 +31,15 @@ async function load() {
 }
 
 function openTrip(trip: ItinerarySummaryDTO) {
-  router.push(`/trips/${trip.id}/edit`)
+  if (!operations.capture().isActive()) return
+  void router.push(`/trips/${trip.id}`)
+}
+
+function tripSubtitle(trip: ItinerarySummaryDTO): string {
+  const date = formatTripDate(trip.startTime, i18nStore.locale)
+  return date
+    ? i18nStore.t.trip.diagramSubtitle.replace('{date}', date)
+    : i18nStore.t.trip.diagramEmptyDate
 }
 
 function routeText(trip: ItinerarySummaryDTO): string {
@@ -110,8 +118,11 @@ onMounted(load)
         class="app-surface trip-card"
         role="button"
         tabindex="0"
+        :title="i18nStore.t.trip.viewTitle"
+        :aria-label="`${i18nStore.t.trip.viewTitle}：${trip.name}`"
         @click="openTrip(trip)"
-        @keyup.enter="openTrip(trip)"
+        @keyup.enter.self="openTrip(trip)"
+        @keydown.space.self.prevent="openTrip(trip)"
       >
         <div class="flex items-start justify-between gap-3">
           <h2 class="m-0 break-words text-base font-semibold tracking-[-0.01em]">
@@ -127,6 +138,7 @@ onMounted(load)
           </button>
         </div>
 
+        <p class="mb-0 mt-2 text-xs text-ink-soft">{{ tripSubtitle(trip) }}</p>
         <p class="mt-3 flex items-center gap-2 text-[13px] font-medium">
           <span class="i-ep-position text-accent-600" aria-hidden="true"></span>
           {{ routeText(trip) }}

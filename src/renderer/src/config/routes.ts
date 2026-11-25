@@ -65,6 +65,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/trip/TripAbandoned.vue')
       },
       {
+        path: 'trips/:itineraryId',
+        name: 'TripDetail',
+        component: () => import('../views/trip/TripDetail.vue'),
+        props: true
+      },
+      {
         path: 'trips/:itineraryId/edit',
         name: 'TripEdit',
         component: () => import('../views/trip/TripEditor.vue'),

@@ -18,8 +18,13 @@ photo wall that can be exported as a Wallpaper Engine web wallpaper.
 - **Markdown editor** — split edit/preview, source mode, image insertion, a
   formatting action (markdownlint profile) and a built-in syntax reference.
   Preview HTML is sanitized with DOMPurify.
-- **Itineraries (trips)** — create, edit, filter and soft-delete trips with
-  start/intermediate/end places and transport legs; abandoned trips can be
+- **Itineraries (trips)** — dedicated list, diagram and editing pages. The
+  horizontal diagram shows start/intermediate/end places, transport arrows,
+  arrival/departure clocks and stay durations. Its title is the itinerary name;
+  its subtitle uses the departure's local calendar date. Click the diagram to
+  edit the name, places and travel legs in dialogs; add intermediate stops from
+  the top-right control. Saving opens the display page; the editor's back
+  control confirms discarding unsaved work. Abandoned trips can still be
   restored or permanently deleted.
 - **Photo wall** — upload photos plus an optional foreground character cutout,
   preview a scrolling wall, and export a Wallpaper Engine web wallpaper archive.

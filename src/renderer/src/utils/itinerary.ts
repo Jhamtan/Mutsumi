@@ -6,10 +6,15 @@ import type { TransportMode } from '@common/types'
 import { transportModeLabel } from '@common/types'
 
 /** Formats a duration in minutes as "Xh Ym". */
-export function formatDuration(minutes: number): string {
+export function formatDuration(minutes: number, locale: 'zh' | 'en' = 'zh'): string {
   if (!Number.isFinite(minutes) || minutes < 0) return ''
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
+  if (locale === 'en') {
+    if (h === 0) return `${m} min`
+    if (m === 0) return `${h} hr`
+    return `${h} hr ${m} min`
+  }
   if (h === 0) return `${m}分钟`
   if (m === 0) return `${h}小时`
   return `${h}小时${m}分钟`
@@ -22,6 +27,49 @@ export function formatClock(value: Date | string | null | undefined): string {
   if (Number.isNaN(date.getTime())) return '—'
   const pad = (n: number): string => String(n).padStart(2, '0')
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function tripDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isFinite(date.getTime()) ? date : null
+}
+
+/** Use the departure's local calendar date, never the UTC ISO date substring. */
+export function formatTripDate(
+  value: Date | string | null | undefined,
+  locale: 'zh' | 'en' = 'zh'
+): string {
+  const date = tripDate(value)
+  if (!date) return ''
+  if (locale === 'en')
+    return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(date)
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+/** Same-day clocks stay compact; crossing midnight/year makes the date explicit. */
+export function formatDiagramClock(
+  value: Date | string | null | undefined,
+  departure: Date | string | null | undefined,
+  locale: 'zh' | 'en' = 'zh'
+): string {
+  const date = tripDate(value)
+  if (!date) return '—'
+  const anchor = tripDate(departure)
+  const pad = (part: number): string => String(part).padStart(2, '0')
+  const clock = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  if (
+    anchor &&
+    date.getFullYear() === anchor.getFullYear() &&
+    date.getMonth() === anchor.getMonth() &&
+    date.getDate() === anchor.getDate()
+  )
+    return clock
+  let day = formatTripDate(date, locale)
+  if (!anchor || date.getFullYear() !== anchor.getFullYear()) {
+    day = locale === 'zh' ? `${date.getFullYear()}年${day}` : `${day}, ${date.getFullYear()}`
+  }
+  return `${day} ${clock}`
 }
 
 /** Chinese/English label for a transport mode. */
