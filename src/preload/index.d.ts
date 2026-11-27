@@ -38,7 +38,10 @@ import {
   PhotoWallExportResultDTO,
   CloseBehaviorDTO,
   ResolveCloseDTO,
-  CloseAction
+  CloseAction,
+  UpdateInfoDTO,
+  UpdateSettingsDTO,
+  UpdateStatusDTO
 } from '@common/types'
 
 declare global {
@@ -101,6 +104,13 @@ declare global {
     setCloseBehavior: (data: { action: CloseAction }) => Promise<IpcResponse<null>>
     resolveClose: (data: ResolveCloseDTO) => Promise<IpcResponse<null>>
     onCloseQuery: (callback: (action: CloseAction) => void) => () => void
+    getAppInfo: () => Promise<IpcResponse<UpdateInfoDTO>>
+    getUpdateStatus: () => Promise<IpcResponse<UpdateStatusDTO>>
+    getUpdateSettings: () => Promise<IpcResponse<UpdateSettingsDTO>>
+    setAutoCheck: (autoCheck: boolean) => Promise<IpcResponse<null>>
+    checkForUpdates: () => Promise<IpcResponse<UpdateStatusDTO>>
+    installUpdate: () => Promise<IpcResponse<null>>
+    onUpdateStatus: (callback: (status: UpdateStatusDTO) => void) => () => void
   }
   interface Window {
     electron: { ipcRenderer: { send: (channel: 'vue-app-ready') => void } }

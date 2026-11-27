@@ -391,7 +391,22 @@ export const useI18nStore = defineStore('i18n', () => {
         language: '界面语言',
         closeBehavior: '关闭应用时',
         logout: '退出登录',
-        note: '日记数据加密保存在本机，请牢记日记本密码。'
+        note: '日记数据加密保存在本机，请牢记日记本密码。',
+        about: '关于',
+        version: '版本',
+        repo: 'GitHub 仓库',
+        checkUpdate: '检查更新',
+        checking: '正在检查更新…',
+        updateAvailable: '发现新版本 {version}',
+        downloading: '正在下载更新 {percent}%',
+        updateDownloaded: '新版本 v{version} 已就绪，重启后生效',
+        restartInstall: '重启并安装',
+        later: '稍后',
+        upToDate: '已是最新版本',
+        checkFail: '检查更新失败',
+        devModeHint: '开发模式下无法检查更新',
+        autoCheck: '自动检查更新',
+        autoCheckHint: '启动时自动检查新版本'
       }
     },
     en: {
@@ -792,7 +807,22 @@ export const useI18nStore = defineStore('i18n', () => {
         language: 'Language',
         closeBehavior: 'When closing the app',
         logout: 'Log out',
-        note: 'Your diaries are encrypted on this device. Keep your notebook passwords safe.'
+        note: 'Your diaries are encrypted on this device. Keep your notebook passwords safe.',
+        about: 'About',
+        version: 'Version',
+        repo: 'GitHub repository',
+        checkUpdate: 'Check for updates',
+        checking: 'Checking for updates…',
+        updateAvailable: 'Update {version} available',
+        downloading: 'Downloading {percent}%',
+        updateDownloaded: 'Version {version} is ready. Restart to apply.',
+        restartInstall: 'Restart and install',
+        later: 'Later',
+        upToDate: 'You are up to date',
+        checkFail: 'Could not check for updates',
+        devModeHint: 'Updates are unavailable in development mode',
+        autoCheck: 'Check for updates automatically',
+        autoCheckHint: 'Check for new versions on launch'
       }
     }
   }

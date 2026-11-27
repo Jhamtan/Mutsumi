@@ -1,5 +1,9 @@
 appId: com.mutsumi.app
 productName: mutsumi
+publish:
+  provider: github
+  owner: Jhamtan
+  repo: Mutsumi
 directories:
   buildResources: build
 files:

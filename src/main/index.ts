@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url'
 import { trustIpcSender } from './ipc/security'
 import { isAllowedRendererNavigation, getSafeExternalUrl } from './window/navigation-policy'
 import { bindWindow, handleClose, showMainWindow, quitApplication } from './window/window-control'
+import { initUpdater } from './updater'
 
 /**
  * Electron main-process entry point: acquires the single-instance lock, configures
@@ -191,6 +192,10 @@ app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.electron')
 
   await initializer.initialize()
+
+  // Wire up the auto-updater (GitHub Releases) before the window opens so
+  // status broadcasts are captured from the very first render.
+  initUpdater()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

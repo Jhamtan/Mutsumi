@@ -124,3 +124,28 @@ export interface ResolveCloseDTO {
   action: CloseAction
   remember: boolean
 }
+
+// 5. Application updates (auto-updater publishing to GitHub Releases)
+export type UpdateState =
+  'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error'
+
+/** Live update status pushed from the main process to the settings "About" card. */
+export interface UpdateStatusDTO {
+  state: UpdateState
+  version?: string
+  percent?: number
+  message?: string
+}
+
+/** Static application metadata shown in the About card. */
+export interface UpdateInfoDTO {
+  name: string
+  version: string
+  repoUrl: string
+  isPackaged: boolean
+}
+
+/** Persisted auto-update preference (auto check is enabled by default). */
+export interface UpdateSettingsDTO {
+  autoCheck: boolean
+}

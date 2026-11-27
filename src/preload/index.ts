@@ -71,6 +71,18 @@ const api = {
     const listener = (_event, action): void => callback(action)
     ipcRenderer.on('app:close-query', listener)
     return () => ipcRenderer.removeListener('app:close-query', listener)
+  },
+  getAppInfo: () => ipcRenderer.invoke('update:get-info'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:get-status'),
+  getUpdateSettings: () => ipcRenderer.invoke('update:get-settings'),
+  setAutoCheck: (autoCheck) => ipcRenderer.invoke('update:set-auto-check', { autoCheck }),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  // Subscribe to main-process update status broadcasts.
+  onUpdateStatus: (callback) => {
+    const listener = (_event, status): void => callback(status)
+    ipcRenderer.on('update:status', listener)
+    return () => ipcRenderer.removeListener('update:status', listener)
   }
 }
 

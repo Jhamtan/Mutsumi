@@ -10,6 +10,7 @@ import { registerBackupHandlers } from './handlers/backup-handlers'
 import { registerWindowHandlers } from './handlers/window-handlers'
 import { registerItineraryHandlers } from './handlers/itinerary-handlers'
 import { registerPhotoWallHandlers } from './handlers/photowall-handlers'
+import { registerUpdateHandlers } from './handlers/update-handlers'
 
 /**
  * Registers every IPC handler on the Electron main process.
@@ -23,4 +24,5 @@ export function registerIpcHandlers(): void {
   registerWindowHandlers()
   registerItineraryHandlers()
   registerPhotoWallHandlers()
+  registerUpdateHandlers()
 }

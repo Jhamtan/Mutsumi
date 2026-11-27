@@ -1,5 +1,30 @@
 <script setup lang="ts">
+import { useI18nStore } from '@renderer/store/i18n'
+import type { UpdateStatusDTO } from '@common/types'
 import CloseDialog from './components/CloseDialog.vue'
+
+const i18nStore = useI18nStore()
+let lastNotifiedVersion: string | undefined
+
+// When an update finishes downloading, prompt once (per version) to restart and install,
+// regardless of which page the user is on.
+function onUpdateStatus(status: UpdateStatusDTO) {
+  if (status.state !== 'downloaded') return
+  if (status.version && status.version === lastNotifiedVersion) return
+  lastNotifiedVersion = status.version
+  const t = i18nStore.t.settings
+  ElMessageBox.confirm(t.updateDownloaded.replace('{version}', status.version ?? ''), t.about, {
+    confirmButtonText: t.restartInstall,
+    cancelButtonText: t.later,
+    type: 'info'
+  })
+    .then(() => window.api.installUpdate())
+    .catch(() => undefined)
+}
+
+onMounted(() => {
+  window.api.onUpdateStatus(onUpdateStatus)
+})
 </script>
 
 <template>
